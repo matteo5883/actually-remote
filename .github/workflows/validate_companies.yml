@@ -1,0 +1,11 @@
+name: Validate Company URLs
+on:
+  pull_request:
+    paths:
+      - 'companies.json'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder — validation logic coming soon
+        run: echo "Validation not yet implemented"
