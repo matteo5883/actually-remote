@@ -1,14 +1,60 @@
 name: Daily Job Scraper
 
 on:
-  # schedule:
-  #   - cron: '0 5 * * *'
-  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'  # 5am UTC / 6am CET daily
+  workflow_dispatch:       # manual trigger from Actions tab
 
 jobs:
   scrape:
-    if: false
     runs-on: ubuntu-latest
+
     steps:
-      - name: Placeholder — scraper not yet implemented
-        run: echo "Coming soon"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create .env from secrets
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
+          echo "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" >> .env
+          echo "EMAIL_TO=${{ secrets.EMAIL_TO }}" >> .env
+          echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> .env
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
+
+      - name: Create config.yaml from secret
+        run: echo "${{ secrets.CONFIG_YAML }}" > config.yaml
+
+      - name: Run scraper
+        run: python main.py
+
+      - name: Commit updated seen_jobs.json
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -f seen_jobs.json
+          git diff --staged --quiet || git commit -m "chore: update seen jobs [skip ci]"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" -X POST \
+          -d '{"content": "❌ Actually Remote scraper failed. Check logs: https://github.com/${{ github.repository }}/actions"}' \
+          "${{ secrets.DISCORD_WEBHOOK_URL }}"
