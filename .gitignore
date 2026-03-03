@@ -5,6 +5,8 @@ cv.txt
 seen_jobs.json
 SCOPE.md
 test_scraper.py
+test_email.py
+email_preview.html
 
 # === Python ===
 __pycache__/
